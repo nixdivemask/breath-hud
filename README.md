@@ -44,17 +44,21 @@ npm install
 npm run dev
 ```
 
-Open the printed localhost URL. **Demo feed** checks the FFT path with four synthetic chests (14 /min good, 6 /min below floor, 28 /min fast, fading amplitude). **Capture screen** then pick the monitor that shows the camera wall.
+**Browser launch (HTTPS, required for screen capture on a public origin):**
+[https://nixdivemask.github.io/breath-hud/](https://nixdivemask.github.io/breath-hud/)
 
-For a kiosk-style window:
+**Demo feed** checks the FFT path with four synthetic chests (14 /min good, 6 /min below floor, 28 /min fast, fading amplitude). **Capture screen** then pick the monitor that shows the camera wall.
+
+Kiosk-style Chromium window (local or Pages URL):
 
 ```bash
-chromium --app=http://127.0.0.1:5173
+chromium --app=https://nixdivemask.github.io/breath-hud/
+# or: chromium --app=http://127.0.0.1:5173
 ```
 
 Fullscreen: button or `F`. Settings: `S`. Deselect: `Esc`.
 
-After GitHub Pages is enabled on this repo, the same UI can be launched from the HTTPS Pages URL (screen capture requires a secure origin).
+CI workflow YAML is in [`docs/github-actions/`](docs/github-actions/). The live site is published from the `gh-pages` branch.
 
 ## Overlay on top of existing screens (Electron)
 
