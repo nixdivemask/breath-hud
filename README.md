@@ -47,7 +47,12 @@ npm run dev
 **Browser launch (HTTPS, required for screen capture on a public origin):**
 [https://nixdivemask.github.io/breath-hud/](https://nixdivemask.github.io/breath-hud/)
 
-**Demo feed** checks the FFT path with four synthetic chests (14 /min good, 6 /min below floor, 28 /min fast, fading amplitude). **Capture screen** then pick the monitor that shows the camera wall.
+**Breathing sim (separate window to capture):**
+[https://nixdivemask.github.io/breath-hud/simulate.html](https://nixdivemask.github.io/breath-hud/simulate.html)
+
+Two people on cots: **Alex at 14 /min** (should read good) and **Sam at 6 /min** (should read bad). In the HUD, click **Breathing sim**, then **Capture screen** and pick **that window** (not Entire Screen of the HUD).
+
+**Demo feed** (in-HUD) is a built-in check with four synthetic chests. **Capture screen** is for a real camera wall or the sim window.
 
 Kiosk-style Chromium window (local or Pages URL):
 

@@ -33,6 +33,7 @@ const labelsEl = document.getElementById("labels") as HTMLInputElement;
 const clickThroughEl = document.getElementById("click-through") as HTMLInputElement;
 
 const btnDemo = document.getElementById("btn-demo") as HTMLButtonElement;
+const btnSim = document.getElementById("btn-sim") as HTMLButtonElement;
 const btnScreen = document.getElementById("btn-screen") as HTMLButtonElement;
 const btnStop = document.getElementById("btn-stop") as HTMLButtonElement;
 const btnFs = document.getElementById("btn-fs") as HTMLButtonElement;
@@ -321,6 +322,10 @@ window.addEventListener("keydown", (ev) => {
   if (ev.key === "s" || ev.key === "S") settingsEl.hidden = !settingsEl.hidden;
 });
 
+btnSim.addEventListener("click", () => {
+  const url = new URL("simulate.html", window.location.href).href;
+  window.open(url, "breath-sim", "popup=yes,width=1400,height=800");
+});
 btnDemo.addEventListener("click", () => void start("demo"));
 btnScreen.addEventListener("click", () => void start("screen"));
 btnStop.addEventListener("click", stop);
