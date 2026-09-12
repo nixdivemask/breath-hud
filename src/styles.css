@@ -79,7 +79,7 @@ body.overlay-mode.chrome-hidden #settings {
   justify-content: flex-end;
 }
 
-button, select, input[type="number"] {
+button, select, input[type="number"], a.btn {
   background: #1c2530;
   color: var(--text);
   border: 1px solid var(--line);
@@ -87,8 +87,10 @@ button, select, input[type="number"] {
   padding: 6px 10px;
   font: inherit;
   font-size: 13px;
+  text-decoration: none;
+  display: inline-block;
 }
-button:hover { border-color: var(--accent); }
+button:hover, a.btn:hover { border-color: var(--accent); }
 button.primary { background: #243044; border-color: var(--accent); }
 button:disabled { opacity: 0.45; }
 

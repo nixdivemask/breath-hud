@@ -48,9 +48,12 @@ npm run dev
 [https://nixdivemask.github.io/breath-hud/](https://nixdivemask.github.io/breath-hud/)
 
 **Breathing sim (separate window to capture):**
+http://127.0.0.1:5173/simulate.html (local) ·
 [https://nixdivemask.github.io/breath-hud/simulate.html](https://nixdivemask.github.io/breath-hud/simulate.html)
 
 Two people on cots: **Alex at 14 /min** (should read good) and **Sam at 6 /min** (should read bad). In the HUD, click **Breathing sim**, then **Capture screen** and pick **that window** (not Entire Screen of the HUD).
+
+Local HUD is `http://127.0.0.1:5173/` (IPv4). `localhost` also works; they were bound separately before.
 
 **Demo feed** (in-HUD) is a built-in check with four synthetic chests. **Capture screen** is for a real camera wall or the sim window.
 

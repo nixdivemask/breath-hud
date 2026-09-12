@@ -33,7 +33,7 @@ const labelsEl = document.getElementById("labels") as HTMLInputElement;
 const clickThroughEl = document.getElementById("click-through") as HTMLInputElement;
 
 const btnDemo = document.getElementById("btn-demo") as HTMLButtonElement;
-const btnSim = document.getElementById("btn-sim") as HTMLButtonElement;
+const btnSim = document.getElementById("btn-sim") as HTMLAnchorElement;
 const btnScreen = document.getElementById("btn-screen") as HTMLButtonElement;
 const btnStop = document.getElementById("btn-stop") as HTMLButtonElement;
 const btnFs = document.getElementById("btn-fs") as HTMLButtonElement;
@@ -322,9 +322,23 @@ window.addEventListener("keydown", (ev) => {
   if (ev.key === "s" || ev.key === "S") settingsEl.hidden = !settingsEl.hidden;
 });
 
-btnSim.addEventListener("click", () => {
-  const url = new URL("simulate.html", window.location.href).href;
-  window.open(url, "breath-sim", "popup=yes,width=1400,height=800");
+function simPageUrl(): string {
+  const { origin, pathname } = window.location;
+  const parts = pathname.split("/").filter(Boolean);
+  if (parts.length && /\.html?$/i.test(parts[parts.length - 1]!)) {
+    parts.pop();
+  }
+  const dir = parts.length ? `/${parts.join("/")}/` : "/";
+  return `${origin}${dir}simulate.html`;
+}
+
+btnSim.href = simPageUrl();
+btnSim.addEventListener("click", (ev) => {
+  ev.preventDefault();
+  const url = simPageUrl();
+  btnSim.setAttribute("href", url);
+  const w = window.open(url, "breath-sim", "width=1400,height=800");
+  if (!w) window.location.assign(url);
 });
 btnDemo.addEventListener("click", () => void start("demo"));
 btnScreen.addEventListener("click", () => void start("screen"));
