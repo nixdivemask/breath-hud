@@ -1,0 +1,40 @@
+{
+  "name": "breath-hud",
+  "version": "0.1.0",
+  "private": false,
+  "description": "Chromium overlay HUD that finds periodic breathing in screen pixels via temporal FFT. Assistive harm-reduction tool — not a medical device.",
+  "type": "module",
+  "main": "electron/main.cjs",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/nixdivemask/breath-hud.git"
+  },
+  "bugs": {
+    "url": "https://github.com/nixdivemask/breath-hud/issues"
+  },
+  "homepage": "https://github.com/nixdivemask/breath-hud",
+  "keywords": [
+    "harm-reduction",
+    "breathing",
+    "fft",
+    "overlay",
+    "hud",
+    "chromium",
+    "electron"
+  ],
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "overlay": "npm run build && electron .",
+    "overlay:dev": "node electron/dev.cjs"
+  },
+  "devDependencies": {
+    "electron": "^32.2.0",
+    "typescript": "^5.6.3",
+    "vite": "^5.4.10",
+    "vitest": "^2.1.4"
+  }
+}
