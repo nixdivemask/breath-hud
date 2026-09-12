@@ -45,6 +45,7 @@ export function drawLabels(
   const h = ctx.canvas.height;
   ctx.clearRect(0, 0, w, h);
   ctx.font = "600 13px ui-sans-serif, system-ui, sans-serif";
+  ctx.textAlign = "left";
   ctx.textBaseline = "top";
 
   const placed: { x: number; y: number; w: number; h: number }[] = [];
@@ -109,6 +110,109 @@ function roundRect(
   ctx.closePath();
 }
 
+function drawLineChart(
+  ctx: CanvasRenderingContext2D,
+  box: { x: number; y: number; w: number; h: number },
+  pts: { t: number; v: number }[],
+  opts: {
+    yMin: number;
+    yMax: number;
+    color: string;
+    yTicks: number[];
+    guides?: { y: number; color: string; dash?: boolean; label: string }[];
+    yUnit: string;
+    title: string;
+  },
+) {
+  const { x, y, w, h } = box;
+  ctx.fillStyle = "#121820";
+  roundRect(ctx, x, y, w, h, 5);
+  ctx.fill();
+
+  ctx.fillStyle = "#8b98a8";
+  ctx.font = "11px ui-sans-serif, system-ui, sans-serif";
+  ctx.textAlign = "left";
+  ctx.textBaseline = "top";
+  ctx.fillText(opts.title, x + 8, y + 4);
+
+  const padL = 28;
+  const padB = 16;
+  const padT = 20;
+  const padR = 8;
+  const px0 = x + padL;
+  const py0 = y + padT;
+  const pw = w - padL - padR;
+  const ph = h - padT - padB;
+  const span = opts.yMax - opts.yMin || 1;
+  const yAt = (v: number) => py0 + ph - ((v - opts.yMin) / span) * ph;
+
+  ctx.strokeStyle = "rgba(255,255,255,0.08)";
+  ctx.lineWidth = 1;
+  ctx.fillStyle = "#6b7785";
+  ctx.font = "10px ui-sans-serif, system-ui, sans-serif";
+  ctx.textAlign = "right";
+  ctx.textBaseline = "middle";
+  for (const tick of opts.yTicks) {
+    const yy = yAt(tick);
+    ctx.beginPath();
+    ctx.moveTo(px0, yy);
+    ctx.lineTo(px0 + pw, yy);
+    ctx.stroke();
+    ctx.fillText(String(tick), px0 - 4, yy);
+  }
+
+  for (const g of opts.guides ?? []) {
+    const yy = yAt(g.y);
+    ctx.strokeStyle = g.color;
+    ctx.setLineDash(g.dash ? [4, 3] : []);
+    ctx.beginPath();
+    ctx.moveTo(px0, yy);
+    ctx.lineTo(px0 + pw, yy);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = g.color;
+    ctx.textAlign = "left";
+    ctx.fillText(g.label, px0 + 4, yy - 7);
+  }
+
+  if (pts.length >= 2) {
+    const t0 = pts[0]!.t;
+    const t1 = pts[pts.length - 1]!.t;
+    const xAt = (t: number) => px0 + ((t - t0) / (t1 - t0 || 1)) * pw;
+    ctx.beginPath();
+    ctx.moveTo(xAt(pts[0]!.t), yAt(pts[0]!.v));
+    for (let i = 1; i < pts.length; i++) {
+      ctx.lineTo(xAt(pts[i]!.t), yAt(pts[i]!.v));
+    }
+    ctx.lineTo(xAt(pts[pts.length - 1]!.t), py0 + ph);
+    ctx.lineTo(xAt(pts[0]!.t), py0 + ph);
+    ctx.closePath();
+    ctx.globalAlpha = 0.2;
+    ctx.fillStyle = opts.color;
+    ctx.fill();
+    ctx.globalAlpha = 1;
+
+    ctx.beginPath();
+    pts.forEach((p, i) => {
+      const px = xAt(p.t);
+      const py = yAt(p.v);
+      if (i === 0) ctx.moveTo(px, py);
+      else ctx.lineTo(px, py);
+    });
+    ctx.strokeStyle = opts.color;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+  }
+
+  ctx.fillStyle = "#6b7785";
+  ctx.font = "10px ui-sans-serif, system-ui, sans-serif";
+  ctx.textAlign = "right";
+  ctx.textBaseline = "bottom";
+  ctx.fillText("2 min", x + w - 8, y + h - 3);
+  ctx.textAlign = "left";
+  ctx.fillText(opts.yUnit, x + 8, y + h - 3);
+}
+
 export function drawDetailCard(
   ctx: CanvasRenderingContext2D,
   cl: ClusterSnapshot,
@@ -123,15 +227,15 @@ export function drawDetailCard(
   const cx = ((cl.cx + 0.5) / cols) * w;
   const cy = ((cl.cy + 0.5) / rows) * h;
 
-  const cardW = 280;
-  const cardH = 176;
+  const cardW = 360;
+  const cardH = 292;
   let x = cx + 16;
   let y = cy - cardH / 2;
   if (x + cardW > w - 12) x = cx - cardW - 16;
   if (y < 12) y = 12;
   if (y + cardH > h - 12) y = h - cardH - 12;
 
-  ctx.fillStyle = "rgba(10,14,18,0.92)";
+  ctx.fillStyle = "rgba(10,14,18,0.94)";
   roundRect(ctx, x, y, cardW, cardH, 8);
   ctx.fill();
   ctx.strokeStyle = rgbCss(rgb, 1);
@@ -141,55 +245,56 @@ export function drawDetailCard(
   const period = cl.bpm > 0.1 ? 60 / cl.bpm : 0;
   ctx.font = "700 15px ui-sans-serif, system-ui, sans-serif";
   ctx.fillStyle = "#f4f6f8";
+  ctx.textAlign = "left";
   ctx.textBaseline = "top";
   ctx.fillText(`${cl.id}  ·  ${cl.status.toUpperCase()}`, x + 12, y + 10);
-  ctx.font = "13px ui-sans-serif, system-ui, sans-serif";
+  ctx.font = "12px ui-sans-serif, system-ui, sans-serif";
   ctx.fillStyle = "#c9d2dc";
-  const lines = [
-    `Now ${cl.bpm.toFixed(2)} /min  (${period.toFixed(1)} s/breath)`,
-    `2 min avg  ${cl.avgBpm2min.toFixed(2)} /min   amp ${(cl.avgAmp2min * 100).toFixed(0)}%`,
-    `Trend ${cl.trendBpmPerMin >= 0 ? "+" : ""}${cl.trendBpmPerMin.toFixed(2)} /min per min`,
+  const trend = `${cl.trendBpmPerMin >= 0 ? "+" : ""}${cl.trendBpmPerMin.toFixed(2)} /min per min`;
+  const extra =
     cl.secondsToLow !== null
-      ? `May cross 7 /min in ${(cl.secondsToLow / 60).toFixed(1)} min`
-      : "Not projected to cross 7 /min",
-    cl.ampDropFrac !== null
-      ? `Amplitude change ${(cl.ampDropFrac * -100).toFixed(0)}% vs ~2 min ago`
-      : "Need ~2 min for amplitude drop check",
-  ];
-  lines.forEach((ln, i) => ctx.fillText(ln, x + 12, y + 34 + i * 16));
+      ? `  ·  7 /min in ${(cl.secondsToLow / 60).toFixed(1)} min`
+      : "";
+  ctx.fillText(
+    `${cl.bpm.toFixed(1)} /min (${period.toFixed(1)} s)  ·  amp ${(cl.amplitude * 100).toFixed(0)}%  ·  ${trend}${extra}`,
+    x + 12,
+    y + 30,
+  );
 
-  const sparkX = x + 12;
-  const sparkY = y + 122;
-  const sparkW = cardW - 24;
-  const sparkH = 42;
-  ctx.fillStyle = "#1a222c";
-  ctx.fillRect(sparkX, sparkY, sparkW, sparkH);
-  if (history.length >= 2) {
-    const bpms = history.map((s) => s.bpm);
-    const lo = Math.min(4, ...bpms);
-    const hi = Math.max(30, ...bpms);
-    ctx.beginPath();
-    history.forEach((s, i) => {
-      const px = sparkX + (i / (history.length - 1)) * sparkW;
-      const py = sparkY + sparkH - ((s.bpm - lo) / (hi - lo)) * sparkH;
-      if (i === 0) ctx.moveTo(px, py);
-      else ctx.lineTo(px, py);
-    });
-    ctx.strokeStyle = rgbCss(rgb, 1);
-    ctx.lineWidth = 2;
-    ctx.stroke();
-    const y7 = sparkY + sparkH - ((7 - lo) / (hi - lo)) * sparkH;
-    ctx.strokeStyle = "rgba(255,255,255,0.25)";
-    ctx.setLineDash([3, 3]);
-    ctx.beginPath();
-    ctx.moveTo(sparkX, y7);
-    ctx.lineTo(sparkX + sparkW, y7);
-    ctx.stroke();
-    ctx.setLineDash([]);
-  }
-  ctx.fillStyle = "#8b98a8";
-  ctx.font = "11px ui-sans-serif, system-ui, sans-serif";
-  ctx.fillText("Period (cycles / min) · dashed = 7 /min", sparkX, sparkY + sparkH + 2);
+  const chartW = cardW - 24;
+  drawLineChart(
+    ctx,
+    { x: x + 12, y: y + 50, w: chartW, h: 108 },
+    history.map((s) => ({ t: s.t, v: s.bpm })),
+    {
+      yMin: 0,
+      yMax: 32,
+      color: rgbCss(rgb, 1),
+      yTicks: [0, 7, 16, 24, 32],
+      guides: [{ y: 7, color: "rgba(213,94,0,0.85)", dash: true, label: "7 /min" }],
+      yUnit: "breaths / min",
+      title: "Rate  (rolling 2 min)",
+    },
+  );
+  const amps = history.map((s) => s.amplitude * 100);
+  const aMax = Math.max(20, ...amps, cl.avgAmp2min * 100 * 1.2);
+  const half = cl.avgAmp2min > 0 ? cl.avgAmp2min * 50 : 0;
+  drawLineChart(
+    ctx,
+    { x: x + 12, y: y + 166, w: chartW, h: 108 },
+    history.map((s) => ({ t: s.t, v: s.amplitude * 100 })),
+    {
+      yMin: 0,
+      yMax: aMax,
+      color: "#56b4e9",
+      yTicks: [0, Math.round(aMax / 2), Math.round(aMax)],
+      guides: half
+        ? [{ y: half, color: "rgba(230,159,0,0.85)", dash: true, label: "50% of 2 min mean" }]
+        : [],
+      yUnit: "amplitude %",
+      title: "Amplitude  (rolling 2 min)",
+    },
+  );
 }
 
 export function clusterAtPointer(

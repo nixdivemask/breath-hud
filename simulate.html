@@ -10,7 +10,15 @@
     <canvas id="room"></canvas>
     <div id="sim-chrome">
       <strong>Breathing sim</strong>
-      <span>Point Breath HUD → Capture screen → this window</span>
+      <span>Capture this window from Breath HUD</span>
+      <label>
+        People
+        <input id="count" type="number" min="2" max="24" step="1" />
+      </label>
+      <label class="check">
+        <input id="vary" type="checkbox" checked />
+        Rates drift
+      </label>
       <button type="button" id="btn-fs">Fullscreen</button>
     </div>
     <script type="module" src="/src/simulate.ts"></script>

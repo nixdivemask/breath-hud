@@ -51,7 +51,7 @@ npm run dev
 http://127.0.0.1:5173/simulate.html (local) ·
 [https://nixdivemask.github.io/breath-hud/simulate.html](https://nixdivemask.github.io/breath-hud/simulate.html)
 
-Two people on cots: **Alex at 14 /min** (should read good) and **Sam at 6 /min** (should read bad). In the HUD, click **Breathing sim**, then **Capture screen** and pick **that window** (not Entire Screen of the HUD).
+A **bay of 2–24 people** (default 12; `?n=16` or the People control). Mix of rest / slowing / fast / crash / fading amplitude. Rates drift over time unless you uncheck **Rates drift**. Each cot has a 2-minute rate sparkline (dashed = 7 /min). Click a HUD cluster for rate + amplitude charts.
 
 Local HUD is `http://127.0.0.1:5173/` (IPv4). `localhost` also works; they were bound separately before.
 
