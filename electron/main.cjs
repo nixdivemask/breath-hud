@@ -50,6 +50,15 @@ function createWindow() {
   win.setContentProtection(true);
 
   const ses = win.webContents.session;
+  ses.setPermissionRequestHandler((_wc, permission, callback) => {
+    callback(permission === "media" || permission === "display-capture" || permission === "fullscreen");
+  });
+  ses.setPermissionCheckHandler((_wc, permission) => {
+    return permission === "media" || permission === "display-capture" || permission === "fullscreen";
+  });
+  if (typeof ses.setDevicePermissionHandler === "function") {
+    ses.setDevicePermissionHandler((details) => details.deviceType === "videoInput");
+  }
   ses.setDisplayMediaRequestHandler(
     async (_req, callback) => {
       const sources = await desktopCapturer.getSources({

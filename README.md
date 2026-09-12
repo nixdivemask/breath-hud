@@ -1,12 +1,12 @@
 # Breath HUD
 
-Open-source **Chromium overlay** that watches a screen (typically a CCTV / camera-wall monitor at a harm-reduction shelter), finds **clusters of pixels whose brightness oscillates at a breathing-like period**, and paints a heads-up display on top of those regions.
+Open-source **Chromium overlay** that watches a **camera** or a **screen** (typically a CCTV / camera-wall monitor at a harm-reduction shelter), finds **clusters of pixels whose brightness oscillates at a breathing-like period**, and paints a heads-up display on top of those regions.
 
 This is an **assistive visualization for staff**. It is **not a medical device**, not a monitor, and not a substitute for in-person checks, pulse oximetry, or existing overdose-response protocol.
 
 ## What it does
 
-1. Captures a display or window (or runs a built-in demo feed).
+1. Captures a **camera**, a display/window, or the built-in breathing-sim bay.
 2. Downsamples each frame to a coarse grid and records **luminance vs time** per cell (~8 Hz).
 3. Runs a **temporal FFT** (Hann window, respiratory band 4–40 cycles/min) in a Web Worker.
 4. Groups neighboring cells that share a period into **clusters**, and keeps an identity + history for each cluster (IndexedDB, local only).
@@ -35,7 +35,7 @@ The shader also **pulses** on bad / slowing regions so status is not hue-only.
 
 ## Run in a browser (Chromium)
 
-Needs a recent **Chrome / Chromium / Edge** (WebGL2, `getDisplayMedia`, module workers). Firefox is not the target.
+Needs a recent **Chrome / Chromium / Edge** (WebGL2, `getUserMedia` / `getDisplayMedia`, module workers). Firefox is not the target.
 
 ```bash
 git clone https://github.com/nixdivemask/breath-hud.git
@@ -44,7 +44,7 @@ npm install
 npm run dev
 ```
 
-**Browser launch (HTTPS, required for screen capture on a public origin):**
+**Browser launch (HTTPS, required for camera and screen capture on a public origin):**
 [https://nixdivemask.github.io/breath-hud/](https://nixdivemask.github.io/breath-hud/)
 
 **Breathing sim (separate window to capture):**
@@ -55,7 +55,9 @@ A **bay of 2–24 people** (default 12; `?n=16` or the People control). Mix of r
 
 Local HUD is `http://127.0.0.1:5173/` (IPv4). `localhost` also works; they were bound separately before.
 
-**Demo feed** (in-HUD) is a built-in check with four synthetic chests. **Capture screen** is for a real camera wall or the sim window.
+**Use camera** is the standalone path: a webcam or USB camera in this same window (pick the device in Settings). Video never leaves the browser.
+
+**Demo feed** runs that same bay inside the HUD (People / Rates drift controls appear while it is running). **Capture screen** is for a real camera wall, or for the standalone sim window if you want two displays.
 
 Kiosk-style Chromium window (local or Pages URL):
 

@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta
       name="description"
-      content="Breath HUD — local screen overlay that highlights periodic breathing. Assistive harm-reduction tool, not a medical device."
+      content="Breath HUD — camera or screen overlay that highlights periodic breathing. Assistive harm-reduction tool, not a medical device."
     />
     <link rel="manifest" href="./manifest.webmanifest" />
     <link rel="icon" href="./icon.svg" type="image/svg+xml" />
@@ -21,13 +21,24 @@
         <div class="actions">
           <a class="btn" id="btn-sim" href="./simulate.html" target="breath-sim" rel="noopener">Breathing sim</a>
           <button type="button" id="btn-demo">Demo feed</button>
-          <button type="button" id="btn-screen" class="primary">Capture screen</button>
+          <span id="demo-controls" hidden>
+            <label>
+              People
+              <input id="demo-count" type="number" min="2" max="24" step="1" />
+            </label>
+            <label class="check">
+              <input id="demo-vary" type="checkbox" checked />
+              Rates drift
+            </label>
+          </span>
+          <button type="button" id="btn-camera" class="primary">Use camera</button>
+          <button type="button" id="btn-screen">Capture screen</button>
           <button type="button" id="btn-stop" disabled>Stop</button>
           <button type="button" id="btn-fs">Fullscreen</button>
           <button type="button" id="btn-settings">Settings</button>
           <button type="button" id="btn-export">Export JSON</button>
         </div>
-        <div id="status-line">Idle — capture a camera-wall display or run the demo.</div>
+        <div id="status-line">Idle — use a camera, capture a display, or run the breathing sim in this window.</div>
       </header>
 
       <div id="stage">
@@ -42,7 +53,8 @@
             monitor is grey because Chrome blanks out this tab.
           </p>
           <p>
-            Pick the <strong>camera-wall window</strong> or <strong>another display</strong>.
+            Pick the <strong>camera-wall window</strong> or <strong>another display</strong>,
+            or use <strong>Use camera</strong> to watch a webcam / USB camera in this window.
             For a see-through HUD on this same screen, run
             <code>npm run overlay</code> in the repo.
           </p>
@@ -75,6 +87,12 @@
         <label class="check">
           <input id="labels" type="checkbox" />
           Show rolling 2-minute labels
+        </label>
+        <label>
+          Camera
+          <select id="camera-device">
+            <option value="">Default (rear if available)</option>
+          </select>
         </label>
         <label class="check">
           <input id="click-through" type="checkbox" />

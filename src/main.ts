@@ -3,7 +3,17 @@ import { OverlayShader } from "./overlay/shader";
 import { clusterAtPointer, drawDetailCard, drawLabels } from "./overlay/labels";
 import { paletteTexture, PALETTE_LABELS } from "./overlay/palettes";
 import { downsampleLuminance } from "./process/luminance";
-import { DemoSource, ScreenSource, type FrameSource } from "./sources/frames";
+import { clampSimCount, loadSimCount, saveSimCount } from "./sim/bay";
+import {
+  CameraSource,
+  DemoSource,
+  ScreenSource,
+  listVideoInputs,
+  loadCameraId,
+  mediaErrorMessage,
+  saveCameraId,
+  type FrameSource,
+} from "./sources/frames";
 import { downloadText, exportJson, upsertCluster } from "./store/indexeddb";
 import type { AppConfig, ClusterSnapshot, WorkerOut } from "./types";
 import { loadConfig, PALETTE_IDS, saveConfig } from "./ui/config";
@@ -33,8 +43,13 @@ const labelsEl = document.getElementById("labels") as HTMLInputElement;
 const clickThroughEl = document.getElementById("click-through") as HTMLInputElement;
 
 const btnDemo = document.getElementById("btn-demo") as HTMLButtonElement;
+const demoControls = document.getElementById("demo-controls")!;
+const demoCountEl = document.getElementById("demo-count") as HTMLInputElement;
+const demoVaryEl = document.getElementById("demo-vary") as HTMLInputElement;
 const btnSim = document.getElementById("btn-sim") as HTMLAnchorElement;
+const btnCamera = document.getElementById("btn-camera") as HTMLButtonElement;
 const btnScreen = document.getElementById("btn-screen") as HTMLButtonElement;
+const cameraDeviceEl = document.getElementById("camera-device") as HTMLSelectElement;
 const btnStop = document.getElementById("btn-stop") as HTMLButtonElement;
 const btnFs = document.getElementById("btn-fs") as HTMLButtonElement;
 const btnSettings = document.getElementById("btn-settings") as HTMLButtonElement;
@@ -184,31 +199,81 @@ function bootWorker() {
   });
 }
 
-async function start(kind: "demo" | "screen") {
+type SourceKind = "demo" | "screen" | "camera";
+
+function setTransportEnabled(on: boolean) {
+  btnStop.disabled = on;
+  btnScreen.disabled = !on;
+  btnCamera.disabled = !on;
+  btnDemo.disabled = !on;
+}
+
+async function refreshCameraList() {
+  const selected = cameraDeviceEl.value || loadCameraId();
+  const devices = await listVideoInputs().catch(() => [] as MediaDeviceInfo[]);
+  cameraDeviceEl.innerHTML = "";
+  const def = document.createElement("option");
+  def.value = "";
+  def.textContent = "Default (rear if available)";
+  cameraDeviceEl.append(def);
+  for (const d of devices) {
+    const o = document.createElement("option");
+    o.value = d.deviceId;
+    o.textContent = d.label || `Camera ${cameraDeviceEl.options.length}`;
+    cameraDeviceEl.append(o);
+  }
+  cameraDeviceEl.value = [...cameraDeviceEl.options].some((o) => o.value === selected)
+    ? selected
+    : "";
+}
+
+function makeSource(kind: SourceKind): FrameSource {
+  if (kind === "demo") return new DemoSource();
+  if (kind === "camera") return new CameraSource(live, cameraDeviceEl.value || loadCameraId());
+  return new ScreenSource(live);
+}
+
+function activeDemo(): DemoSource | null {
+  return source instanceof DemoSource ? source : null;
+}
+
+async function start(kind: SourceKind) {
   stop();
   bootWorker();
-  source = kind === "demo" ? new DemoSource() : new ScreenSource(live);
+  source = makeSource(kind);
+  if (source instanceof DemoSource) {
+    const n = clampSimCount(Number(demoCountEl.value) || loadSimCount());
+    demoCountEl.value = String(n);
+    source.setCount(n);
+    source.setVary(demoVaryEl.checked);
+  }
   try {
     await source.start();
   } catch (err) {
-    setStatus(`Capture failed: ${err instanceof Error ? err.message : String(err)}`);
+    const what = kind === "camera" ? "Camera" : kind === "screen" ? "Screen capture" : "Demo";
+    setStatus(`${what} failed: ${mediaErrorMessage(err)}`);
     source = null;
     return;
   }
   running = true;
-  btnStop.disabled = false;
-  btnScreen.disabled = true;
-  btnDemo.disabled = true;
+  setTransportEnabled(false);
   lastFrame = 0;
-  document.body.classList.toggle("overlay-mode", isElectron);
-  document.body.classList.toggle("live-capture", kind === "screen" && !isElectron);
-  live.hidden = !(kind === "screen" && !isElectron);
-  preview.classList.toggle("hidden", kind === "screen");
-  if (kind === "screen" && !isElectron) {
+  demoControls.hidden = kind !== "demo";
+  const showVideo = kind === "camera" || (kind === "screen" && !isElectron);
+  document.body.classList.toggle("overlay-mode", isElectron && kind === "screen");
+  document.body.classList.toggle("live-capture", showVideo);
+  live.hidden = !showVideo;
+  preview.classList.toggle("hidden", kind !== "demo");
+  if (kind === "demo") {
+    captureHint.hidden = true;
+    setStatus("Running the breathing sim in this window. Wait ~30–60 s for a period lock.");
+  } else if (kind === "camera") {
+    captureHint.hidden = true;
+    setStatus("Live camera — video stays in this browser. Wait ~30–60 s for a period lock.");
+    void refreshCameraList();
+  } else if (kind === "screen" && !isElectron) {
     captureHint.hidden = false;
-    setStatus(
-      "Live capture is the backdrop. Prefer another display or a camera-wall window.",
-    );
+    setStatus("Live capture is the backdrop. Prefer another display, or Use camera.");
   } else {
     captureHint.hidden = true;
   }
@@ -224,9 +289,8 @@ function stop() {
   lastClusters = [];
   overlayBytes = null;
   selectedId = null;
-  btnStop.disabled = true;
-  btnScreen.disabled = false;
-  btnDemo.disabled = false;
+  setTransportEnabled(true);
+  demoControls.hidden = true;
   live.hidden = true;
   live.srcObject = null;
   preview.classList.remove("hidden");
@@ -240,36 +304,34 @@ function stop() {
   setStatus("Stopped.");
 }
 
+function pushFrame(now: number) {
+  downsampleLuminance(scratch, cfg.cols, cfg.rows, lum);
+  const copy = new Float32Array(lum);
+  worker?.postMessage({ type: "frame", t: now, luminance: copy }, [copy.buffer]);
+}
+
 function loop() {
   if (!running || !source) return;
   const now = performance.now();
   resizeCanvases();
-  if (now - lastFrame >= frameInterval) {
-    lastFrame = now;
-    if (source.grab(scratch)) {
-      if (source.name === "demo") {
-        const p = preview.getContext("2d", { alpha: true });
-        if (p) {
-          p.clearRect(0, 0, preview.width, preview.height);
-          const scale = Math.min(
-            preview.width / scratch.width,
-            preview.height / scratch.height,
-          );
-          const dw = scratch.width * scale;
-          const dh = scratch.height * scale;
-          p.drawImage(
-            scratch,
-            (preview.width - dw) / 2,
-            (preview.height - dh) / 2,
-            dw,
-            dh,
-          );
-        }
+  source.tick?.(now);
+  if (source.paint) {
+    source.paint(preview);
+    if (now - lastFrame >= frameInterval) {
+      lastFrame = now;
+      if (scratch.width !== preview.width || scratch.height !== preview.height) {
+        scratch.width = preview.width;
+        scratch.height = preview.height;
       }
-      downsampleLuminance(scratch, cfg.cols, cfg.rows, lum);
-      const copy = new Float32Array(lum);
-      worker?.postMessage({ type: "frame", t: now, luminance: copy }, [copy.buffer]);
+      const sctx = scratch.getContext("2d", { willReadFrequently: true });
+      if (sctx) {
+        sctx.drawImage(preview, 0, 0);
+        pushFrame(now);
+      }
     }
+  } else if (now - lastFrame >= frameInterval) {
+    lastFrame = now;
+    if (source.grab(scratch)) pushFrame(now);
   }
   if (overlayBytes) {
     shader.draw(
@@ -340,8 +402,28 @@ btnSim.addEventListener("click", (ev) => {
   const w = window.open(url, "breath-sim", "width=1400,height=800");
   if (!w) window.location.assign(url);
 });
+demoCountEl.value = String(loadSimCount());
+demoCountEl.addEventListener("change", () => {
+  const n = clampSimCount(Number(demoCountEl.value) || 12);
+  demoCountEl.value = String(n);
+  saveSimCount(n);
+  activeDemo()?.setCount(n);
+});
+demoVaryEl.addEventListener("change", () => {
+  activeDemo()?.setVary(demoVaryEl.checked);
+});
 btnDemo.addEventListener("click", () => void start("demo"));
+btnCamera.addEventListener("click", () => void start("camera"));
 btnScreen.addEventListener("click", () => void start("screen"));
+cameraDeviceEl.value = loadCameraId();
+cameraDeviceEl.addEventListener("change", () => {
+  saveCameraId(cameraDeviceEl.value);
+  if (source?.name === "camera") void start("camera");
+});
+void refreshCameraList();
+navigator.mediaDevices?.addEventListener?.("devicechange", () => {
+  void refreshCameraList();
+});
 btnStop.addEventListener("click", stop);
 btnFs.addEventListener("click", () => {
   if (document.fullscreenElement) void document.exitFullscreen();
@@ -349,6 +431,7 @@ btnFs.addEventListener("click", () => {
 });
 btnSettings.addEventListener("click", () => {
   settingsEl.hidden = !settingsEl.hidden;
+  if (!settingsEl.hidden) void refreshCameraList();
 });
 btnCloseSettings.addEventListener("click", () => {
   settingsEl.hidden = true;
@@ -397,6 +480,6 @@ resizeCanvases();
 window.addEventListener("resize", resizeCanvases);
 setStatus(
   isElectron
-    ? "Glass overlay ready — you should see the desktop through this window. Capture the camera-wall display; this overlay is excluded from the capture."
-    : "Capture a camera-wall window or another display. Entire Screen of this monitor will look grey in a browser tab (the tab cannot be see-through). Use npm run overlay for a glass HUD on the same screen.",
+    ? "Glass overlay ready. Capture a camera-wall display, Use camera in this window, or run Demo feed."
+    : "Use camera for a webcam / USB feed in this window. Capture screen is for a camera-wall display. Demo feed runs the breathing sim here.",
 );

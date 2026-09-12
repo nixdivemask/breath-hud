@@ -1,33 +1,77 @@
+import { BreathingBay, loadSimCount } from "../sim/bay";
+
 export interface FrameSource {
   readonly name: string;
   start(): Promise<{ width: number; height: number }>;
   stop(): void;
   grab(dst: HTMLCanvasElement): boolean;
+  tick?(now: number): void;
+  paint?(dst: HTMLCanvasElement): boolean;
 }
 
-export class ScreenSource implements FrameSource {
-  readonly name = "screen";
+const CAM_KEY = "breath-hud-camera-v1";
+
+export function loadCameraId(): string {
+  try {
+    return String(JSON.parse(globalThis.localStorage?.getItem(CAM_KEY) || "{}").deviceId || "");
+  } catch {
+    return "";
+  }
+}
+
+export function saveCameraId(deviceId: string) {
+  try {
+    globalThis.localStorage?.setItem(CAM_KEY, JSON.stringify({ deviceId }));
+  } catch {
+    /* ignore */
+  }
+}
+
+export function cameraConstraints(deviceId = ""): MediaStreamConstraints {
+  const video: MediaTrackConstraints = {
+    width: { ideal: 1920 },
+    height: { ideal: 1080 },
+    frameRate: { ideal: 15, max: 30 },
+  };
+  if (deviceId) video.deviceId = { exact: deviceId };
+  else video.facingMode = { ideal: "environment" };
+  return { video, audio: false };
+}
+
+export async function listVideoInputs(): Promise<MediaDeviceInfo[]> {
+  if (!navigator.mediaDevices?.enumerateDevices) return [];
+  const all = await navigator.mediaDevices.enumerateDevices();
+  return all.filter((d) => d.kind === "videoinput");
+}
+
+export function mediaErrorMessage(err: unknown): string {
+  if (err instanceof DOMException) {
+    if (err.name === "NotAllowedError") return "Permission denied.";
+    if (err.name === "NotFoundError") return "No camera found.";
+    if (err.name === "NotReadableError") return "Camera is already in use.";
+    if (err.name === "OverconstrainedError") return "That camera mode is not available.";
+  }
+  return err instanceof Error ? err.message : String(err);
+}
+
+export class VideoStreamSource implements FrameSource {
   private stream: MediaStream | null = null;
 
-  constructor(private video: HTMLVideoElement) {}
+  constructor(
+    readonly name: string,
+    private video: HTMLVideoElement,
+    private open: () => Promise<MediaStream>,
+  ) {}
 
   async start(): Promise<{ width: number; height: number }> {
-    this.stream = await navigator.mediaDevices.getDisplayMedia({
-      video: {
-        frameRate: { ideal: 8, max: 15 },
-      },
-      audio: false,
-      // Keep this HUD tab out of the captured frame (avoids a feedback loop).
-      selfBrowserSurface: "exclude",
-      preferCurrentTab: false,
-    } as DisplayMediaStreamOptions);
+    this.stream = await this.open();
     this.video.srcObject = this.stream;
     this.video.muted = true;
     this.video.playsInline = true;
     await this.video.play();
     const track = this.stream.getVideoTracks()[0];
-    const settings = track.getSettings();
-    track.addEventListener("ended", () => this.stop());
+    const settings = track?.getSettings() ?? {};
+    track?.addEventListener("ended", () => this.stop());
     return {
       width: settings.width || this.video.videoWidth || 1280,
       height: settings.height || this.video.videoHeight || 720,
@@ -53,66 +97,69 @@ export class ScreenSource implements FrameSource {
   }
 }
 
-/**
- * Synthetic camera wall: three chests at 14 /min (good), 6 /min (bad),
- * 28 /min (fast), plus one whose amplitude fades.
- */
+export class ScreenSource extends VideoStreamSource {
+  constructor(video: HTMLVideoElement) {
+    super("screen", video, () =>
+      navigator.mediaDevices.getDisplayMedia({
+        video: {
+          frameRate: { ideal: 8, max: 15 },
+        },
+        audio: false,
+        selfBrowserSurface: "exclude",
+        preferCurrentTab: false,
+      } as DisplayMediaStreamOptions),
+    );
+  }
+}
+
+export class CameraSource extends VideoStreamSource {
+  constructor(video: HTMLVideoElement, deviceId = "") {
+    super("camera", video, () => navigator.mediaDevices.getUserMedia(cameraConstraints(deviceId)));
+  }
+}
+
+/** In-HUD copy of the breathing-sim bay (same renderer as simulate.html). */
 export class DemoSource implements FrameSource {
   readonly name = "demo";
-  private canvas = document.createElement("canvas");
-  private t0 = 0;
+  readonly bay = new BreathingBay(loadSimCount(), true);
   private running = false;
 
   async start(): Promise<{ width: number; height: number }> {
-    this.canvas.width = 1280;
-    this.canvas.height = 720;
-    this.t0 = performance.now();
+    this.bay.restart();
     this.running = true;
-    return { width: 1280, height: 720 };
+    return { width: 1920, height: 1080 };
   }
 
   stop() {
     this.running = false;
   }
 
-  grab(dst: HTMLCanvasElement): boolean {
-    if (!this.running) return false;
-    const w = this.canvas.width;
-    const h = this.canvas.height;
-    if (dst.width !== w || dst.height !== h) {
-      dst.width = w;
-      dst.height = h;
-    }
-    const ctx = this.canvas.getContext("2d");
-    const out = dst.getContext("2d", { willReadFrequently: true });
-    if (!ctx || !out) return false;
-    const t = (performance.now() - this.t0) / 1000;
-    ctx.fillStyle = "#1a1f27";
-    ctx.fillRect(0, 0, w, h);
-    ctx.fillStyle = "#2a3340";
-    ctx.fillRect(40, 80, w - 80, h - 160);
+  setCount(n: number) {
+    this.bay.setCount(n);
+  }
 
-    const patches: { x: number; bpm: number; fade: boolean; label: string }[] = [
-      { x: 80, bpm: 14, fade: false, label: "14 /min  good" },
-      { x: 380, bpm: 6, fade: false, label: "6 /min  below floor" },
-      { x: 680, bpm: 28, fade: false, label: "28 /min  fast" },
-      { x: 980, bpm: 12, fade: true, label: "12 /min  fading amp" },
-    ];
-    for (const p of patches) {
-      const hz = p.bpm / 60;
-      const fade = p.fade ? Math.max(0.15, 1 - t / 90) : 1;
-      const osc = 0.5 + 0.5 * Math.sin(2 * Math.PI * hz * t);
-      const v = Math.round(40 + osc * 180 * fade);
-      ctx.fillStyle = `rgb(${v},${Math.round(v * 0.55)},${Math.round(v * 0.4)})`;
-      ctx.fillRect(p.x, 180, 220, 320);
-      ctx.fillStyle = "#d7dee8";
-      ctx.font = "16px ui-sans-serif, system-ui, sans-serif";
-      ctx.fillText(p.label, p.x, 160);
+  setVary(on: boolean) {
+    this.bay.vary = on;
+  }
+
+  tick(now: number) {
+    if (this.running) this.bay.step(now);
+  }
+
+  paint(dst: HTMLCanvasElement): boolean {
+    if (!this.running) return false;
+    if (!dst.width || !dst.height) {
+      dst.width = 1920;
+      dst.height = 1080;
     }
-    ctx.fillStyle = "#8b98a8";
-    ctx.font = "14px ui-sans-serif, system-ui, sans-serif";
-    ctx.fillText("Demo feed — not a camera. Use Start screen to watch a real display.", 48, 48);
-    out.drawImage(this.canvas, 0, 0);
+    const ctx = dst.getContext("2d", { willReadFrequently: true });
+    if (!ctx) return false;
+    this.bay.draw(ctx, dst.width, dst.height);
     return true;
+  }
+
+  grab(dst: HTMLCanvasElement): boolean {
+    this.tick(performance.now());
+    return this.paint(dst);
   }
 }
