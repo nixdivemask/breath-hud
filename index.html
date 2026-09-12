@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="Breath HUD — camera or screen overlay that highlights periodic breathing. Assistive harm-reduction tool, not a medical device."
+    />
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <link rel="icon" href="./icon.svg" type="image/svg+xml" />
+    <title>Breath HUD</title>
+    <script type="module" crossorigin src="./assets/main-Biuzl1Qk.js"></script>
+    <link rel="modulepreload" crossorigin href="./assets/bay-C7CEZXEO.js">
+    <link rel="stylesheet" crossorigin href="./assets/main-4CykUPDH.css">
+  </head>
+  <body>
+    <div id="app">
+      <header id="chrome">
+        <div class="brand">
+          <strong>Breath HUD</strong>
+          <span class="not-device">Not a medical device</span>
+        </div>
+        <div class="actions">
+          <a class="btn" id="btn-sim" href="./simulate.html" target="breath-sim" rel="noopener">Breathing sim</a>
+          <button type="button" id="btn-demo">Demo feed</button>
+          <span id="demo-controls" hidden>
+            <label>
+              People
+              <input id="demo-count" type="number" min="2" max="24" step="1" />
+            </label>
+            <label class="check">
+              <input id="demo-vary" type="checkbox" checked />
+              Rates drift
+            </label>
+          </span>
+          <button type="button" id="btn-camera" class="primary">Use camera</button>
+          <button type="button" id="btn-screen">Capture screen</button>
+          <button type="button" id="btn-stop" disabled>Stop</button>
+          <button type="button" id="btn-fs">Fullscreen</button>
+          <button type="button" id="btn-settings">Settings</button>
+          <button type="button" id="btn-export">Export JSON</button>
+        </div>
+        <div id="status-line">Idle — use a camera, capture a display, or run the breathing sim in this window.</div>
+      </header>
+
+      <div id="stage">
+        <video id="live" autoplay muted playsinline></video>
+        <canvas id="preview" aria-hidden="true"></canvas>
+        <canvas id="gl"></canvas>
+        <canvas id="hud"></canvas>
+        <div id="legend"></div>
+        <div id="capture-hint" hidden>
+          <p>
+            A Chromium tab cannot be transparent. <strong>Entire Screen</strong> of this
+            monitor is grey because Chrome blanks out this tab.
+          </p>
+          <p>
+            Pick the <strong>camera-wall window</strong> or <strong>another display</strong>,
+            or use <strong>Use camera</strong> to watch a webcam / USB camera in this window.
+            For a see-through HUD on this same screen, run
+            <code>npm run overlay</code> in the repo.
+          </p>
+          <button type="button" id="btn-dismiss-hint">Got it</button>
+        </div>
+      </div>
+
+      <aside id="settings" hidden>
+        <h2>Settings</h2>
+        <label>
+          Color scale
+          <select id="palette"></select>
+        </label>
+        <label>
+          Overlay opacity
+          <input id="opacity" type="range" min="0.15" max="0.9" step="0.05" />
+        </label>
+        <label>
+          Sensitivity (SNR)
+          <input id="snr" type="range" min="1.5" max="8" step="0.1" />
+        </label>
+        <label>
+          Slow floor (cycles / min)
+          <input id="low-bpm" type="number" min="4" max="12" step="0.5" />
+        </label>
+        <label>
+          Fast / concerning (cycles / min)
+          <input id="high-bpm" type="number" min="18" max="40" step="1" />
+        </label>
+        <label class="check">
+          <input id="labels" type="checkbox" />
+          Show rolling 2-minute labels
+        </label>
+        <label>
+          Camera
+          <select id="camera-device">
+            <option value="">Default (rear if available)</option>
+          </select>
+        </label>
+        <label class="check">
+          <input id="click-through" type="checkbox" />
+          Electron: click through to the screen underneath
+        </label>
+        <p class="hint">
+          Processing stays in this browser. Video is not uploaded. Staff still
+          need in-person checks — this overlay can miss motion under blankets,
+          at bad angles, or with little chest movement.
+        </p>
+        <button type="button" id="btn-close-settings">Close</button>
+      </aside>
+    </div>
+  </body>
+</html>

@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Breath HUD">
+  <rect width="64" height="64" rx="12" fill="#0c1116"/>
+  <path d="M8 36c6-14 10-14 16 0s10 14 16 0 10-14 16 0" fill="none" stroke="#56b4e9" stroke-width="4" stroke-linecap="round"/>
+  <circle cx="48" cy="18" r="5" fill="#e69f00"/>
+</svg>

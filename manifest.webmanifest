@@ -1,0 +1,16 @@
+{
+  "name": "Breath HUD",
+  "short_name": "Breath HUD",
+  "description": "Local overlay that highlights periodic breathing in a screen capture. Not a medical device.",
+  "start_url": "./",
+  "display": "fullscreen",
+  "background_color": "#0c1116",
+  "theme_color": "#0c1116",
+  "icons": [
+    {
+      "src": "./icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}
