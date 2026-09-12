@@ -11,32 +11,52 @@
   font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
   font-variant-numeric: tabular-nums;
   color: var(--text);
-  background: var(--bg);
+  background: transparent;
 }
 
 * { box-sizing: border-box; }
-html, body { margin: 0; height: 100%; background: transparent; }
-body.browser { background: var(--bg); }
+html, body {
+  margin: 0;
+  height: 100%;
+  background: transparent !important;
+}
+/* Idle Chromium tab only — never during live capture or the glass overlay. */
+body.browser:not(.live-capture):not(.overlay-mode) {
+  background: var(--bg) !important;
+}
 
 #app {
-  display: grid;
-  grid-template-rows: auto 1fr;
+  position: relative;
   height: 100%;
+  background: transparent;
 }
 
 #chrome {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  right: 10px;
+  z-index: 4;
   display: grid;
   grid-template-columns: auto 1fr;
   grid-template-rows: auto auto;
   gap: 8px 16px;
   padding: 10px 14px;
-  background: color-mix(in srgb, var(--panel) 92%, transparent);
-  border-bottom: 1px solid var(--line);
-  z-index: 4;
+  background: rgba(12, 17, 22, 0.55);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  backdrop-filter: blur(8px);
 }
 
 body.overlay-mode #chrome {
-  background: rgba(12, 17, 22, 0.78);
+  background: rgba(12, 17, 22, 0.42);
+}
+
+body.overlay-mode.chrome-hidden #chrome,
+body.overlay-mode.chrome-hidden #legend,
+body.overlay-mode.chrome-hidden #settings {
+  opacity: 0;
+  pointer-events: none;
 }
 
 .brand {
@@ -79,18 +99,26 @@ button:disabled { opacity: 0.45; }
 }
 
 #stage {
-  position: relative;
-  min-height: 0;
+  position: absolute;
+  inset: 0;
   background: transparent;
 }
-#preview, #gl, #hud {
+#live, #preview, #gl, #hud {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
+  background: transparent;
 }
+#live {
+  object-fit: cover;
+  z-index: 0;
+  background: transparent;
+}
+#live[hidden], #preview.hidden { display: none !important; }
 #preview { object-fit: contain; z-index: 0; }
-body.overlay-mode #preview { display: none; }
+body.overlay-mode #live,
+body.overlay-mode #preview { display: none !important; }
 #gl { z-index: 1; pointer-events: none; }
 #hud { z-index: 2; cursor: pointer; }
 
@@ -103,7 +131,7 @@ body.overlay-mode #preview { display: none; }
   align-items: center;
   gap: 8px;
   padding: 6px 10px;
-  background: rgba(12, 17, 22, 0.82);
+  background: rgba(12, 17, 22, 0.55);
   border: 1px solid var(--line);
   border-radius: 6px;
   font-size: 12px;
@@ -118,10 +146,10 @@ body.overlay-mode #preview { display: none; }
 
 #settings {
   position: absolute;
-  top: 64px;
+  top: 92px;
   right: 12px;
   width: min(360px, calc(100% - 24px));
-  background: var(--panel);
+  background: rgba(20, 27, 34, 0.92);
   border: 1px solid var(--line);
   border-radius: 10px;
   padding: 16px;
@@ -137,4 +165,25 @@ body.overlay-mode #preview { display: none; }
   align-items: center;
   color: var(--text);
 }
-.hint { font-size: 12px; color: var(--muted); line-height: 1.45; margin: 4px 0 0; }
+#capture-hint {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 6;
+  width: min(520px, calc(100% - 32px));
+  padding: 16px 18px;
+  background: rgba(12, 17, 22, 0.92);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  font-size: 14px;
+  line-height: 1.45;
+}
+#capture-hint[hidden] { display: none; }
+#capture-hint p { margin: 0 0 10px; }
+#capture-hint code {
+  font-size: 13px;
+  background: #1c2530;
+  padding: 1px 6px;
+  border-radius: 4px;
+}

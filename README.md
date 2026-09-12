@@ -73,6 +73,11 @@ npm run overlay
 
 macOS will ask for **Screen Recording** permission. Windows: allow the picker to choose the camera-wall display, not the HUD.
 
+A Chromium **tab cannot be see-through**. If you pick **Entire Screen** of the monitor this tab is on, Chrome punches a grey/black hole where the tab sits — that is the grey you saw. Either:
+
+- capture **another display** or the **camera-wall window**, or
+- run `npm run overlay` for a transparent always-on-top window on the same screen.
+
 Optional: Settings → *click through* so mouse hits the CCTV UI underneath. Turn that off to click clusters.
 
 ## Privacy

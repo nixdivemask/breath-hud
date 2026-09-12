@@ -8,13 +8,18 @@ const isDev = process.argv.includes("--dev");
 /** @type {Electron.BrowserWindow | null} */
 let win = null;
 
+if (process.platform === "linux") {
+  app.commandLine.appendSwitch("enable-transparent-visuals");
+}
+
 function createWindow() {
   const primary = screen.getPrimaryDisplay();
-  const { width, height } = primary.bounds;
+  // workArea, not bounds: a true fullscreen window is often opaque on macOS.
+  const { x, y, width, height } = primary.workArea;
 
   win = new BrowserWindow({
-    x: primary.bounds.x,
-    y: primary.bounds.y,
+    x,
+    y,
     width,
     height,
     show: true,
@@ -23,18 +28,24 @@ function createWindow() {
     backgroundColor: "#00000000",
     hasShadow: false,
     alwaysOnTop: true,
-    fullscreenable: true,
+    fullscreenable: false,
+    maximizable: false,
     skipTaskbar: false,
+    roundedCorners: false,
+    ...(process.platform === "darwin" ? { type: "panel" } : {}),
     webPreferences: {
       preload: path.join(__dirname, "preload.cjs"),
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
+      backgroundThrottling: false,
     },
   });
 
+  win.setBackgroundColor("#00000000");
   win.setAlwaysOnTop(true, "screen-saver");
   win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+  win.setFullScreenable(false);
   // Keep this HUD out of the captured frame (macOS + Win10 2004+).
   win.setContentProtection(true);
 
@@ -54,6 +65,10 @@ function createWindow() {
     },
     { useSystemPicker: true },
   );
+
+  win.webContents.on("did-finish-load", () => {
+    win?.setBackgroundColor("#00000000");
+  });
 
   if (isDev) {
     win.loadURL("http://127.0.0.1:5173");

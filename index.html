@@ -30,10 +30,23 @@
       </header>
 
       <div id="stage">
+        <video id="live" autoplay muted playsinline></video>
         <canvas id="preview" aria-hidden="true"></canvas>
         <canvas id="gl"></canvas>
         <canvas id="hud"></canvas>
         <div id="legend"></div>
+        <div id="capture-hint" hidden>
+          <p>
+            A Chromium tab cannot be transparent. <strong>Entire Screen</strong> of this
+            monitor is grey because Chrome blanks out this tab.
+          </p>
+          <p>
+            Pick the <strong>camera-wall window</strong> or <strong>another display</strong>.
+            For a see-through HUD on this same screen, run
+            <code>npm run overlay</code> in the repo.
+          </p>
+          <button type="button" id="btn-dismiss-hint">Got it</button>
+        </div>
       </div>
 
       <aside id="settings" hidden>

@@ -8,7 +8,8 @@ export interface FrameSource {
 export class ScreenSource implements FrameSource {
   readonly name = "screen";
   private stream: MediaStream | null = null;
-  private video = document.createElement("video");
+
+  constructor(private video: HTMLVideoElement) {}
 
   async start(): Promise<{ width: number; height: number }> {
     this.stream = await navigator.mediaDevices.getDisplayMedia({
@@ -16,6 +17,7 @@ export class ScreenSource implements FrameSource {
         frameRate: { ideal: 8, max: 15 },
       },
       audio: false,
+      // Keep this HUD tab out of the captured frame (avoids a feedback loop).
       selfBrowserSurface: "exclude",
       preferCurrentTab: false,
     } as DisplayMediaStreamOptions);

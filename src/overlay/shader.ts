@@ -22,7 +22,10 @@ out vec4 frag;
 void main() {
   vec2 uv = vec2(vUv.x, 1.0 - vUv.y);
   vec4 d = texture(uData, uv);
-  if (d.a < 0.5) discard;
+  if (d.a < 0.5) {
+    frag = vec4(0.0);
+    return;
+  }
   vec3 col = texture(uPalette, vec2(d.r, 0.5)).rgb;
   float amp = d.g;
   float trend = d.b;
@@ -33,7 +36,8 @@ void main() {
     pulse = 0.78 + 0.22 * abs(sin(uTime * 2.1));
   }
   float alpha = uOpacity * clamp(0.18 + amp * 0.75, 0.16, 0.82) * pulse;
-  frag = vec4(col, alpha);
+  // Premultiplied so the full-window canvas composites as glass, not a grey sheet.
+  frag = vec4(col * alpha, alpha);
 }
 `;
 
@@ -62,10 +66,14 @@ export class OverlayShader {
   private rows = 1;
 
   constructor(canvas: HTMLCanvasElement) {
+    canvas.style.background = "transparent";
     const gl = canvas.getContext("webgl2", {
       alpha: true,
-      premultipliedAlpha: false,
+      premultipliedAlpha: true,
       antialias: false,
+      depth: false,
+      stencil: false,
+      preserveDrawingBuffer: false,
     });
     if (!gl) throw new Error("WebGL2 is required");
     this.gl = gl;
@@ -102,8 +110,16 @@ export class OverlayShader {
     gl.uniform1i(gl.getUniformLocation(prog, "uPalette"), 1);
     this.uOpacity = gl.getUniformLocation(prog, "uOpacity")!;
     this.uTime = gl.getUniformLocation(prog, "uTime")!;
-    gl.enable(gl.BLEND);
-    gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+    gl.disable(gl.BLEND);
+    gl.clearColor(0, 0, 0, 0);
+    gl.clear(gl.COLOR_BUFFER_BIT);
+  }
+
+  clear() {
+    const gl = this.gl;
+    gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
+    gl.clearColor(0, 0, 0, 0);
+    gl.clear(gl.COLOR_BUFFER_BIT);
   }
 
   setPalette(id: PaletteId) {

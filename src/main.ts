@@ -18,6 +18,7 @@ declare global {
 }
 
 const preview = document.getElementById("preview") as HTMLCanvasElement;
+const live = document.getElementById("live") as HTMLVideoElement;
 const glCanvas = document.getElementById("gl") as HTMLCanvasElement;
 const hud = document.getElementById("hud") as HTMLCanvasElement;
 const statusLine = document.getElementById("status-line")!;
@@ -38,10 +39,13 @@ const btnFs = document.getElementById("btn-fs") as HTMLButtonElement;
 const btnSettings = document.getElementById("btn-settings") as HTMLButtonElement;
 const btnExport = document.getElementById("btn-export") as HTMLButtonElement;
 const btnCloseSettings = document.getElementById("btn-close-settings") as HTMLButtonElement;
+const captureHint = document.getElementById("capture-hint")!;
+const btnDismissHint = document.getElementById("btn-dismiss-hint") as HTMLButtonElement;
 
 const isElectron = Boolean(window.breathHud?.isElectron);
 if (!isElectron) document.body.classList.add("browser");
 if (isElectron) document.body.classList.add("overlay-mode");
+live.hidden = true;
 
 let cfg: AppConfig = loadConfig();
 let source: FrameSource | null = null;
@@ -182,7 +186,7 @@ function bootWorker() {
 async function start(kind: "demo" | "screen") {
   stop();
   bootWorker();
-  source = kind === "demo" ? new DemoSource() : new ScreenSource();
+  source = kind === "demo" ? new DemoSource() : new ScreenSource(live);
   try {
     await source.start();
   } catch (err) {
@@ -195,9 +199,18 @@ async function start(kind: "demo" | "screen") {
   btnScreen.disabled = true;
   btnDemo.disabled = true;
   lastFrame = 0;
-  if (kind === "screen") document.body.classList.add("overlay-mode");
-  else document.body.classList.remove("overlay-mode");
-  if (isElectron) document.body.classList.add("overlay-mode");
+  document.body.classList.toggle("overlay-mode", isElectron);
+  document.body.classList.toggle("live-capture", kind === "screen" && !isElectron);
+  live.hidden = !(kind === "screen" && !isElectron);
+  preview.classList.toggle("hidden", kind === "screen");
+  if (kind === "screen" && !isElectron) {
+    captureHint.hidden = false;
+    setStatus(
+      "Live capture is the backdrop. Prefer another display or a camera-wall window.",
+    );
+  } else {
+    captureHint.hidden = true;
+  }
   loop();
 }
 
@@ -213,7 +226,15 @@ function stop() {
   btnStop.disabled = true;
   btnScreen.disabled = false;
   btnDemo.disabled = false;
-  const hudCtx = hud.getContext("2d");
+  live.hidden = true;
+  live.srcObject = null;
+  preview.classList.remove("hidden");
+  document.body.classList.remove("live-capture");
+  captureHint.hidden = true;
+  if (isElectron) document.body.classList.add("overlay-mode");
+  else document.body.classList.remove("overlay-mode");
+  shader.clear();
+  const hudCtx = hud.getContext("2d", { alpha: true });
   hudCtx?.clearRect(0, 0, hud.width, hud.height);
   setStatus("Stopped.");
 }
@@ -225,11 +246,10 @@ function loop() {
   if (now - lastFrame >= frameInterval) {
     lastFrame = now;
     if (source.grab(scratch)) {
-      if (!document.body.classList.contains("overlay-mode")) {
-        const p = preview.getContext("2d");
+      if (source.name === "demo") {
+        const p = preview.getContext("2d", { alpha: true });
         if (p) {
-          p.fillStyle = "#0c1116";
-          p.fillRect(0, 0, preview.width, preview.height);
+          p.clearRect(0, 0, preview.width, preview.height);
           const scale = Math.min(
             preview.width / scratch.width,
             preview.height / scratch.height,
@@ -258,8 +278,10 @@ function loop() {
       cfg.overlayOpacity,
       now / 1000,
     );
+  } else {
+    shader.clear();
   }
-  const hctx = hud.getContext("2d");
+  const hctx = hud.getContext("2d", { alpha: true });
   if (hctx) {
     if (cfg.showLabels) {
       drawLabels(hctx, lastClusters, grid.cols, grid.rows, cfg.palette, selectedId);
@@ -312,6 +334,9 @@ btnSettings.addEventListener("click", () => {
 btnCloseSettings.addEventListener("click", () => {
   settingsEl.hidden = true;
 });
+btnDismissHint.addEventListener("click", () => {
+  captureHint.hidden = true;
+});
 btnExport.addEventListener("click", () => {
   void exportJson().then((text) =>
     downloadText(`breath-hud-${new Date().toISOString().slice(0, 10)}.json`, text),
@@ -353,6 +378,6 @@ resizeCanvases();
 window.addEventListener("resize", resizeCanvases);
 setStatus(
   isElectron
-    ? "Overlay shell ready. Capture the display that shows the camera wall (this window is excluded from capture on Chromium)."
-    : "Open in Chromium. Demo feed checks the FFT path; Capture screen watches another display or window.",
+    ? "Glass overlay ready — you should see the desktop through this window. Capture the camera-wall display; this overlay is excluded from the capture."
+    : "Capture a camera-wall window or another display. Entire Screen of this monitor will look grey in a browser tab (the tab cannot be see-through). Use npm run overlay for a glass HUD on the same screen.",
 );
